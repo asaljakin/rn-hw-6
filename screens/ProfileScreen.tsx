@@ -1,164 +1,264 @@
-import { FC, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { NativeStackScreenProps } from "react-native-screens/lib/typescript/native-stack/types";
-import { StackParamList } from "../src/types";
-
 import {
-  StyleSheet,
-  ImageBackground,
-  View,
-  Image,
-  TouchableOpacity,
   Text,
-  FlatList,
+  View,
+  StyleSheet,
+  Image,
+  Pressable,
+  TouchableOpacity,
+  ScrollView,
 } from "react-native";
 
+import { navigationProps } from "../types/navigationType";
+
+import { COLORS } from "../styles/global";
+
+import { RoundedBTN } from "../components/Buttons/RoundedBTN";
+import FontAwesome from "react-native-vector-icons/FontAwesome";
+import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
+import AntDesign from "react-native-vector-icons/AntDesign";
+import { LogoutIcon } from "../assets/Icons/LogoutIcon";
+import { logoutDB } from "../helpers/auth";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "../redux/store";
 import {
-  collection,
-  getCountFromServer,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
+  getImageUrl,
+  getPostsByUser,
+  removeUserProfilePhotos,
+  uploadImage,
+} from "../helpers/firestore";
+import { useCallback, useState } from "react";
+import { PostData } from "../types/postsDataTypes";
+import { pickImage } from "../helpers/utils/pickImage";
+import { setUserInfo } from "../redux/reducers/userSlice";
+import { useFocusEffect } from "@react-navigation/native";
 
-import { Ionicons } from "@expo/vector-icons";
-import { EvilIcons } from "@expo/vector-icons";
-import { MaterialIcons } from "@expo/vector-icons";
-
-import { styles } from "../styles/css";
-import { db } from "../src/firebase/config";
-import { selectUser } from "../src/redux/user/userSelectors";
-import { signOutUser } from "../src/redux/user/userOperations";
-//import { pickImage } from "../../firebase/methods/pickImage";
-
-type HomeScreenProps = NativeStackScreenProps<StackParamList, "Profile">;
-
-const ProfileScreen: FC<HomeScreenProps> = ({ navigation, route }) => {
+export const ProfileScreen = ({ navigation }: navigationProps) => {
   const dispatch = useDispatch();
+  const [posts, setPosts] = useState<PostData[] | undefined>();
 
-  const { id, avatar, nickname } = useSelector(selectUser);
+  const [image, setImage] = useState<string | null>(null);
 
-  const [posts, setPosts] = useState([]);
-  const [photo, setPhoto] = useState("");
+  const onLogOut = () => {
+    logoutDB(dispatch);
+  };
+  const user = useSelector((state: RootState) => state.user);
 
-  const getPosts = async () => {
-    const postsRef = collection(db, "posts");
-
-    const q = query(postsRef, where("id", "==", id));
-
-    onSnapshot(q, async (querySnapshot) => {
-      const posts = await Promise.all(
-        querySnapshot.docs.map(async (doc) => {
-          const coll = collection(db, `posts/${doc.id}/comments`);
-          const snapshot = await getCountFromServer(coll);
-          console.log("ProfileScreen", posts);
-          return {
-            ...doc.data(),
-            postId: doc.id,
-            commentCount: snapshot.data().count,
-          };
-        })
+  const onPickImage = async () => {
+    await removeUserProfilePhotos(user.uid);
+    const result = await pickImage();
+    let imageUrl = "";
+    if (result?.imageFile && user.uid) {
+      const imageRef = await uploadImage(
+        user.uid,
+        result?.imageFile,
+        result?.fileName
       );
-
-      setPosts(posts);
-    });
+      imageUrl = await getImageUrl(imageRef);
+    }
+    setImage(imageUrl);
+    dispatch(
+      setUserInfo({
+        ...user,
+        profilePhoto: imageUrl,
+      })
+    );
   };
 
-  useEffect(() => {
-    getPosts();
-  }, []);
+  const getPhotoPosts = async () => {
+    if (user.uid) {
+      const fetchedPosts = await getPostsByUser(user.uid);
+      setPosts(fetchedPosts);
+    }
+  };
 
-  // const newAvatar = async () => {
-  //   await pickImage(setPhoto);
-  //   dispatch(changeAvatar(photo));
-  // };
+  useFocusEffect(
+    useCallback(() => {
+      getPhotoPosts();
+    }, [user.uid])
+  );
+
+  // console.log(posts);
+  console.log(user);
 
   return (
-    <View style={styles.container}>
-      <ImageBackground
+    <View>
+      <Image
+        resizeMode="cover"
+        style={styles.backgroundImage}
         source={require("../assets/images/bg.png")}
-        style={styles.imageBg}
-      >
-        <View style={styles.profileContainer}>
-          <View style={{ marginBottom: 40 }}>
-            <View style={styles.imgContainer}>
-              {avatar && (
-                <Image style={styles.avatar} source={{ uri: avatar }} />
+      />
+      <View style={styles.commonWrapper}>
+        <View style={styles.container}>
+          <TouchableOpacity style={styles.logoutBTN} onPress={onLogOut}>
+            <LogoutIcon style={{ marginRight: 10 }} />
+          </TouchableOpacity>
+          <View style={styles.avatarBoxWrapper}>
+            <View style={styles.avatarPlaceholder}>
+              {user.profilePhoto && (
+                <Image
+                  style={styles.imageAvatar}
+                  source={{ uri: user.profilePhoto }}
+                />
               )}
-              <TouchableOpacity
-                style={styles.icon}
-                //onPress={newAvatar}
-              >
-                <MaterialIcons name="close" size={20} color="#E8E8E8" />
-              </TouchableOpacity>
+              <View style={styles.rounderBTNWrapper}>
+                <RoundedBTN onPress={onPickImage} />
+              </View>
             </View>
-            <TouchableOpacity
-              onPress={() => dispatch(signOutUser())}
-              style={{ marginLeft: "auto", marginTop: -40 }}
-            >
-              <MaterialIcons name="logout" size={24} color="#BDBDBD" />
-            </TouchableOpacity>
           </View>
-          <Text style={styles.name}>{nickname}</Text>
-          {posts && (
-            <FlatList
-              data={posts}
-              keyExtractor={(item) => item.postId}
-              renderItem={({ item }) => (
-                <View style={{ marginBottom: 34 }}>
-                  <Image style={styles.photo} source={{ uri: item.photo }} />
-                  <Text style={styles.title}>{item.title}</Text>
 
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <TouchableOpacity
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                      onPress={() =>
-                        navigation.navigate("Comments", {
-                          postId: item.postId,
-                          uri: item.photo,
-                        })
-                      }
-                    >
-                      <EvilIcons
-                        name="comment"
-                        size={30}
-                        color="#BDBDBD"
-                        style={styles.commentIcon}
-                      />
-                      <Text style={styles.count}>{item.commentCount}</Text>
-                    </TouchableOpacity>
-                    <View>
-                      <TouchableOpacity
-                        onPress={() =>
-                          navigation.navigate("Map", {
-                            location: item.location,
-                          })
-                        }
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
-                        <Ionicons
-                          name="location-outline"
+          <Text style={styles.title}>{user.displayName}</Text>
+
+          <ScrollView>
+            {posts?.map((post) => {
+              return (
+                <View>
+                  <Image style={styles.image} source={{ uri: post.imageUrl }} />
+                  <Text style={styles.subTitle}>{post.description}</Text>
+                  <View style={styles.infoWrapper}>
+                    <View style={styles.infoContainer}>
+                      <View style={styles.elementWrapper}>
+                        <Pressable
+                          onPress={() =>
+                            navigation.navigate("Comments", {
+                              postId: post.postId,
+                            })
+                          }
+                        >
+                          <FontAwesome
+                            name="comment"
+                            color={COLORS.main_accent_color}
+                            size={24}
+                          />
+                        </Pressable>
+
+                        <Text>{post.comments.length}</Text>
+                      </View>
+                      <View style={styles.elementWrapper}>
+                        <AntDesign
+                          name="like2"
+                          color={COLORS.main_accent_color}
                           size={24}
-                          color="#BDBDBD"
                         />
-                        <Text style={styles.place}>{item.place}</Text>
-                      </TouchableOpacity>
+                        <Text>{post.likes}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.elementWrapper}>
+                      <Pressable onPress={() => navigation.navigate("Map")}>
+                        <FontAwesome5
+                          style={{ marginRight: 4 }}
+                          name="map-marker-alt"
+                          size={24}
+                          color={COLORS.light_text_color}
+                        />
+                      </Pressable>
+
+                      <Text>{post.location}</Text>
                     </View>
                   </View>
                 </View>
-              )}
-            />
-          )}
+              );
+            })}
+          </ScrollView>
         </View>
-      </ImageBackground>
+      </View>
     </View>
   );
 };
 
-export default ProfileScreen;
+const styles = StyleSheet.create({
+  commonWrapper: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+
+  container: {
+    width: "100%",
+    height: "80%",
+    backgroundColor: COLORS.main_bg,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingHorizontal: 16,
+    justifyContent: "flex-start",
+    position: "relative",
+  },
+
+  backgroundImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+  },
+
+  avatarBoxWrapper: {
+    position: "relative",
+    marginTop: -60,
+    alignItems: "center",
+  },
+  avatarPlaceholder: {
+    width: 120,
+    height: 120,
+    backgroundColor: COLORS.secondary_bg,
+    borderRadius: 16,
+    position: "relative",
+  },
+  imageAvatar: {
+    borderRadius: 16,
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+  },
+
+  rounderBTNWrapper: {
+    position: "absolute",
+    right: -10,
+    bottom: 15,
+  },
+
+  logoutBTN: {
+    zIndex: 99,
+    position: "absolute",
+    right: 16,
+    top: 22,
+  },
+
+  title: {
+    marginTop: 32,
+    marginBottom: 32,
+    fontSize: 30,
+    color: COLORS.primary_text_color,
+    lineHeight: 36,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+
+  image: {
+    borderRadius: 16,
+    width: "100%",
+    height: 280,
+  },
+  subTitle: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 18,
+    color: COLORS.primary_text_color,
+  },
+  infoWrapper: {
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  infoContainer: {
+    flexDirection: "row",
+    gap: 24,
+  },
+  elementWrapper: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+    marginBottom: 24,
+  },
+});

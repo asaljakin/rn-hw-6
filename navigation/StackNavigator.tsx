@@ -1,102 +1,89 @@
 import { createStackNavigator } from "@react-navigation/stack";
-import { TouchableOpacity } from "react-native-gesture-handler";
+import { LoginScreen } from "../screens/LooginScreen";
+import { RegistrationScreen } from "../screens/RegestrationScreen";
+import { BottomTabNavigator } from "./BottomNavigator";
+import { CommentsScreen } from "../screens/CommentsScreen";
 
-import BottomTabNavigator from "./BottomTabNavigation";
+import AntDesign from "react-native-vector-icons/AntDesign";
 
-import LoginScreen from "../screens/LoginScreen";
-import RegistrationScreen from "../screens/RegistrationScreen";
-import CommentsScreen from "../screens/CommentsScreen";
-import MapScreen from "../screens/MapScreen";
-
-import { colors } from "../styles/global";
-import { styles } from "../styles/css";
-import { Feather } from "@expo/vector-icons";
+import { COLORS } from "../styles/global";
+import { Pressable } from "react-native";
+import { CameraScreen } from "../screens/CameraScreen";
+import { MapScreen } from "../screens/MapScreen";
 import { useSelector } from "react-redux";
-import { selectIsAuth } from "../src/redux/user/userSelectors";
-
+import { RootState } from "../redux/store";
+import React from "react";
 const Stack = createStackNavigator();
-
-const StackNavigator = () => {
-  const auth = useSelector(selectIsAuth);
-
+export const StackNavigator = () => {
+  const user = useSelector((state: RootState) => state.user);
   return (
     <Stack.Navigator
-      initialRouteName="Login"
       screenOptions={{
         headerShown: false,
       }}
+      initialRouteName={user ? "Main" : "Login"}
     >
-      {auth ? (
+      {user.uid ? (
         <>
+          <Stack.Screen name="Main" component={BottomTabNavigator} />
+          <Stack.Screen name="Camera" component={CameraScreen} />
           <Stack.Screen
-            name="Home"
-            component={BottomTabNavigator}
-            options={{
-              title: "",
-            }}
+            name="Map"
+            options={({ navigation }) => ({
+              headerTitle: "Map",
+              headerShown: true,
+              headerLeft: () => {
+                return (
+                  <Pressable
+                    onPress={() => {
+                      navigation.goBack();
+                    }}
+                    style={{ marginLeft: 10 }}
+                  >
+                    <AntDesign
+                      name="arrowleft"
+                      size={24}
+                      color={COLORS.primary_text_color}
+                    />
+                  </Pressable>
+                );
+              },
+              tabBarStyle: { display: "none" },
+            })}
+            component={MapScreen}
           />
           <Stack.Screen
             name="Comments"
+            options={({ navigation }) => ({
+              headerTitle: "Коментарі",
+              headerShown: true,
+              headerLeft: () => {
+                return (
+                  <Pressable
+                    onPress={() => {
+                      navigation.goBack();
+                    }}
+                    style={{ marginLeft: 10 }}
+                  >
+                    <AntDesign
+                      name="arrowleft"
+                      size={24}
+                      color={COLORS.primary_text_color}
+                    />
+                  </Pressable>
+                );
+              },
+              tabBarStyle: { display: "none" },
+            })}
             component={CommentsScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-              title: "Коментарі",
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                  <Feather name="arrow-left" size={24} color={colors.black80} />
-                </TouchableOpacity>
-              ),
-              headerRightContainerStyle: { paddingRight: 16 },
-              headerLeftContainerStyle: { paddingLeft: 16 },
-              headerStyle: styles.tabHeader,
-              headerTitleStyle: styles.tabHeaderTitle,
-              headerTitleAlign: "center",
-            })}
-          />
-
-          <Stack.Screen
-            name="Map"
-            component={MapScreen}
-            options={({ navigation }) => ({
-              headerShown: true,
-
-              title: "Локація",
-              headerLeft: () => (
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                  <Feather name="arrow-left" size={24} color={colors.black80} />
-                </TouchableOpacity>
-              ),
-              headerRightContainerStyle: { paddingRight: 16 },
-              headerLeftContainerStyle: { paddingLeft: 16 },
-              headerStyle: styles.tabHeader,
-              headerTitleStyle: styles.tabHeaderTitle,
-              headerTitleAlign: "center",
-            })}
           />
         </>
       ) : (
         <>
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{
-              title: "",
-              headerShown: false,
-            }}
-          />
-
-          <Stack.Screen
-            name="Registration"
-            component={RegistrationScreen}
-            options={{
-              title: "",
-              headerShown: false,
-            }}
-          />
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Registration" component={RegistrationScreen} />
         </>
       )}
     </Stack.Navigator>
   );
 };
-
-export default StackNavigator;

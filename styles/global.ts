@@ -1,11 +1,10 @@
-export const colors = {
-  white: "#FFFFFF",
-  white30: "rgba(255, 255, 255, 0.3)",
-  black_primary: "#212121",
-  black80: "rgba(33, 33, 33, 0.80)",
-  light_gray: "#F6F6F6",
-  underline_gray: "#BDBDBD",
-  border_gray: "#E8E8E8",
-  blue: "#1B4371",
-  orange: "#FF6C00",
+export const COLORS = {
+  main_bg: "#FFFFFF",
+  primary_text_color: "#212121",
+  secondary_bg: "#F6F6F6",
+  border_color: "#E8E8E8",
+  main_accent_color: "#FF6C00",
+  secondary_text_color: "#FFFFFF",
+  secondary_accent_color: "#1B4371",
+  light_text_color: "#BDBDBD",
 };
